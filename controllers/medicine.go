@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"log"
 	"medi/models"
 	"net/http"
@@ -32,11 +31,44 @@ func GetList(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": list})
 }
+func FindRow(c *gin.Context) {
+	log.Printf("Start FindRow")
+	var i models.Medicine
+	i.Name = c.Param("name")
+	err := GetMedRow(&i)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	c.JSON(http.StatusOK, gin.H{"data": i})
+
+}
+func UpdateRow(c *gin.Context) {
+	var i models.Medicine
+	i.Name = c.Param("name")
+	if err := GetMedRow(&i); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	if err := c.ShouldBindJSON(&i); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	if err := UpdateMed(&i); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	c.JSON(http.StatusOK, gin.H{"data": i})
+
+}
+func DelRow(c *gin.Context) {
+	var i models.Medicine
+	i.Name = c.Param("name")
+	if err := DeleteMed(i.Name); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	c.JSON(http.StatusOK, gin.H{"data": i})
+}
 
 //-----------------
 
 func AddMed(m *models.Medicine) error {
-	fmt.Println("start AddMed: ", m)
 	sqlStatement := "INSERT INTO public.medi (id, name, docmed) VALUES (uuid_generate_v4(), $1, $2)"
 	_, err := models.DB.Exec(sqlStatement, m.Name, m.Docmed)
 	if err != nil {
@@ -64,4 +96,26 @@ func GetMedList() ([]models.Medicine, error) {
 
 	return m, nil
 
+}
+func GetMedRow(m *models.Medicine) error {
+	err := models.DB.QueryRow("SELECT id, name, docmed FROM medi where name=$1", m.Name).Scan(&m.Id, &m.Name, &m.Docmed)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func UpdateMed(m *models.Medicine) error {
+	_, err := models.DB.Exec("UPDATE medi SET name=$1, docmed=$2 WHERE id=$3", m.Name, m.Docmed, m.Id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteMed(s string) error {
+	_, err := models.DB.Exec("DELETE FROM medi WHERE name=$1", s)
+	if err != nil {
+		return err
+	}
+	return nil
 }
